@@ -1,6 +1,8 @@
 library("pacman")
-p_load(dplyr, ggplot2,forecast,DescTools,corrplot,plotly,ggfortify, GGally, readr,caret,readxl,RMySQL, scales,zoo, stringr,
-       knitr,printr,party,polycor,padr,BBmisc,car,rstudioapi,reshape,lubridate,raster)
+p_load(dplyr, ggplot2,forecast,DescTools,corrplot,plotly,ggfortify, 
+       GGally, readr,caret,readxl,RMySQL, scales,zoo, stringr,
+       knitr,printr,party,polycor,padr,BBmisc,car,
+       rstudioapi,reshape,lubridate,raster,opera)
 #Creating proper dataset####
 energy <- read.csv("energy.csv",as.is = TRUE)
 energy$datetime <- as_datetime(energy$timedate,tz = "GMT")
@@ -148,4 +150,5 @@ for (i in vector) {
 }
 rownames(accuracycv) <- c("meanf","rwf","naive")
 accuracycv
-
+arimaacc
+holtacc
