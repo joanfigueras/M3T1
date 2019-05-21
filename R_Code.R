@@ -113,16 +113,39 @@ energyweekly <- energy %>% group_by(year,week) %>%
                           pricelaundry = sum(pricelaundry),
                           pricehvac = sum(pricehvac),
                           totalprice = sum(totalprice))
-#Creating Time Series
+#Creating Time Series####
 energyts <- msts(energyweekly$active,seasonal.periods = 53,ts.frequency = 53,
                  start = c(2007,1),end = c(2009,53))
 decomposedts <- stl(energyts,s.window = "period")
 plot(energyts, main="Active consumption", xlab="Year", ylab="KW/h")
 autoplot(decomposedts)
 
+energytsholt <- energyts - decomposedts$time.series[,1]
+
+#Creating train and test####  
 trainset <- window(energyts, start=2007,end = c(2008,53))
 testset <- window(energyts, start=2009)
 
-auto.arima(energyts)
-
+trainsetholt <- window(energytsholt, start=2007,end = c(2008,53))
+testsetholt <- window(energytsholt, start=2009)
+#Holtwinters####
+holtresult <- HoltWinters(x = trainsetholt,beta = FALSE,gamma = FALSE)
+holtforecast2009 <- forecast(holtresult,h = 53)
+holtacc <- accuracy(f = holtforecast2009,testsetholt)
+plot(holtresult)
+#Autoarima####
+arimaresult <- auto.arima(trainset)
+arimaforecast2009 <- forecast(arimaresult,h = 53)
+arimaacc <- accuracy(f = arimaforecast2009,testset)
+plot(arimaforecast2009)
+#CrossValidation other models
+crossvalidation <- c()
+vector <- c(meanf,rwf,naive)
+accuracycv <- NULL
+for (i in vector) {
+  crossvalidation <- tsCV(y = energyts,h = 53,forecastfunction = i)
+  accuracycv <- rbind(accuracycv,accuracy(crossvalidation,energyts))
+}
+rownames(accuracycv) <- c("meanf","rwf","naive")
+accuracycv
 
