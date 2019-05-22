@@ -22,45 +22,13 @@ energy$minute <- minute(energy$datetime)
 energy$hour <- hour(energy$datetime)
 energy$week <- week(energy$datetime)
 energy$yearmonth <- paste(month.abb[energy$month],energy$year,sep = "-")
-energy$weekday <- wday(energy$datetime,abbr = FALSE,label = TRUE)
+energy$weekday <- wday(energy$datetime,abbr = FALSE,label = TRUE,locale = "English")
 energy$active <- energy$active/60
 
 vector <- c("kitchen","laundry","hvac")
 for(i in 1:length(vector)){
   energy[vector[i]] <- round(energy[vector[i]]/1000,digits = 20)
 } #TURNING KWH
-
-#Time every room consumes energy####
-cat(round(length(which(energy$kitchen > 0))/length(energy$kitchen)*100,digits = 2),
-    "% of the time the kitchen is consuming energy\n",sep = "")
-cat(round(length(which(energy$laundry > 0))/length(energy$laundry)*100,digits = 2),
-    "% of the time the laundry is consuming energy\n",sep = "")
-cat(round(length(which(energy$hvac > 0))/length(energy$hvac)*100,digits = 2),
-    "% of the time the hvac is consuming energy\n",sep = "")
-cat(round(length(which(energy$kitchen + energy$laundry + energy$hvac > 0))/length(energy$kitchen)*100,digits = 2),
-    "% of the time the submitters are consuming energy somewhere in the house\n",sep = "")
-#CREATING DAY PLOTS####
-vector <- levels(energy$weekday)
-dayplots <- list()
-for (i in 1:length(levels(energy$weekday))){
-  
-  dayplots[[i]] <- energy %>% group_by(hour) %>% filter(weekday == vector[i]) %>% 
-    summarise(kitchen = mean(kitchen),
-              hvac = mean(hvac),
-              laundry = mean(laundry),
-              active = mean(active))
-  
-  dayplots[[i]] <- ggplot(dayplots[[i]],aes(x=hour)) +
-    geom_line(aes(y = kitchen,col = "kitchen")) +
-    geom_line(aes(y = laundry,col = "laundry")) +
-    geom_line(aes(y = active,col = "active")) +
-    geom_line(aes(y = hvac,col = "hvac")) +
-    geom_point(aes(y = active,col = "active")) +    
-    geom_point(aes(y = kitchen,col = "kitchen")) +
-    geom_point(aes(y = laundry,col = "laundry")) +
-    geom_point(aes(y = hvac,col = "hvac")) +
-    ylab("Kw/h") + xlab("Hour") + ggtitle(vector[i])
-} 
 
 ##SETTING PRICES####  
 price <- data.frame("peak" = c(0.158),"valley" = c(0.123))
@@ -85,6 +53,29 @@ cat("Laundry ",(sum(energy$pricelaundry)/(length(energy$pricelaundry))/(1/60)),"
 cat("Hvac ",(sum(energy$pricehvac)/(length(energy$pricehvac))/(1/60)),"€\n",sep = "")
 cat("TOTAL ",(sum(energy$totalprice)/(length(energy$totalprice))/(1/60)),"€\n",sep = "")
 #PLOT BY MONTH PRICED####
+#CREATING DAY PLOTS####
+vector <- unique(energy$weekday)
+dayplots <- list()
+for (i in 1:length(unique(energy$weekday))){
+  
+  dayplots[[i]] <- energy %>% group_by(hour) %>% filter(weekday == vector[i]) %>% 
+    summarise(kitchen = mean(pricekitchen),
+              hvac = mean(pricehvac),
+              laundry = mean(pricelaundry),
+              active = mean(totalprice))
+  
+  dayplots[[i]] <- ggplot(dayplots[[i]],aes(x=hour)) +
+    geom_line(aes(y = kitchen,col = "kitchen")) +
+    geom_line(aes(y = laundry,col = "laundry")) +
+    geom_line(aes(y = active,col = "active")) +
+    geom_line(aes(y = hvac,col = "hvac")) +
+    geom_point(aes(y = active,col = "active")) +    
+    geom_point(aes(y = kitchen,col = "kitchen")) +
+    geom_point(aes(y = laundry,col = "laundry")) +
+    geom_point(aes(y = hvac,col = "hvac")) +
+    ylab("€") + xlab("Hour") + ggtitle(paste(vector[i],"price per hour"))
+} 
+names(dayplots) <- unique(energy$weekday)
 monthlyplots <- list()
 vector <- unique(energy$yearmonth)
 for (i in 1:length(unique(energy$yearmonth))) {
@@ -174,7 +165,87 @@ plot(prophetresult,prophetforecast2010,pch = 24,cex = 3)
 cvdf <- cross_validation(prophetresult,initial = 2*365,units = 'days',horizon = 365)
 cvdfper <- performance_metrics(cvdf,rolling_window = 0)
 mean(cvdfper$mape)
-accuracycv
-arimaacc
-holtacc
-prophetaacc
+
+#PLOTS####
+Plot <- function(Year,Month,Day){
+  require(ggplot2,dplyr,ggfortify,GGally,caret,printr,lubridate)
+  if(Year %in% unique(energy$year) & Month %in% unique(energy$month) & Day %in% unique(energy$day)){
+    if(is.null(Year)){
+        print("Missing Year")
+      } else {
+          if(is.null(Month)){
+            Day <- NULL
+            df <- energy %>% group_by(energy$year) 
+            %>% dplyr::filter(energy$year == Year) 
+            %>% summarise(KitchenKw/h = sum(kitchen),
+                          LaundryKw/h = sum(laundry),
+                          HVACKw/h = sum(hvac),
+                          TotalKw/h = sum(active),
+                          KitchenPrice = sum(pricekitchen),
+                          LaundryPrice = sum(pricelaundry),
+                          HVACPrice = sum(pricehvac),
+                          TotalPrice = sum(totalprice))
+            ggplot(df,aes(x = df$year)) +
+              geom_line(aes(y = KitchenPrice,col = "KitchenPrice")) +
+              geom_line(aes(y = LaundryPrice,col = "LaundryPrice")) +
+              geom_line(aes(y = HVACPrice,col = "HVACPrice")) +
+              geom_line(aes(y = TotalPrice,col = "TotalPrice")) +
+              geom_point(aes(y = KitchenPrice,col = "KitchenPrice")) +    
+              geom_point(aes(y = LaundryPrice,col = "LaundryPrice")) +
+              geom_point(aes(y = HVACPrice,col = "HVACPrice")) +
+              geom_point(aes(y = TotalPrice,col = "TotalPrice")) +
+              ylab("€")
+          } else {
+              if(is.null(Day)){
+                df <- energy %>% group_by(energy$year,energy$month) 
+                %>% dplyr::filter(energy$year == Year & energy$month == Month)
+                %>% summarise(KitchenKw/h = sum(kitchen),
+                              LaundryKw/h = sum(laundry),
+                              HVACKw/h = sum(hvac),
+                              TotalKw/h = sum(active),
+                              KitchenPrice = sum(pricekitchen),
+                              LaundryPrice = sum(pricelaundry),
+                              HVACPrice = sum(pricehvac),
+                              TotalPrice = sum(totalprice))
+                ggplot(df,aes(x = energy$day)) +
+                  geom_line(aes(y = KitchenPrice,col = "KitchenPrice")) +
+                  geom_line(aes(y = LaundryPrice,col = "LaundryPrice")) +
+                  geom_line(aes(y = HVACPrice,col = "HVACPrice")) +
+                  geom_line(aes(y = TotalPrice,col = "TotalPrice")) +
+                  geom_point(aes(y = KitchenPrice,col = "KitchenPrice")) +    
+                  geom_point(aes(y = LaundryPrice,col = "LaundryPrice")) +
+                  geom_point(aes(y = HVACPrice,col = "HVACPrice")) +
+                  geom_point(aes(y = TotalPrice,col = "TotalPrice")) +
+                  ylab("€")
+              } else {
+                df <- energy %>% group_by(energy$year,energy$month,energy$day) 
+                %>% dplyr::filter(energy$year == Year & energy$month == Month & energy$day == Day)
+                %>% summarise(KitchenKw/h = sum(kitchen),
+                              LaundryKw/h = sum(laundry),
+                              HVACKw/h = sum(hvac),
+                              TotalKw/h = sum(active),
+                              KitchenPrice = sum(pricekitchen),
+                              LaundryPrice = sum(pricelaundry),
+                              HVACPrice = sum(pricehvac),
+                              TotalPrice = sum(totalprice))
+                ggplot(df,aes(x = df$hour)) +
+                  geom_line(aes(y = KitchenPrice,col = "KitchenPrice")) +
+                  geom_line(aes(y = LaundryPrice,col = "LaundryPrice")) +
+                  geom_line(aes(y = HVACPrice,col = "HVACPrice")) +
+                  geom_line(aes(y = TotalPrice,col = "TotalPrice")) +
+                  geom_point(aes(y = KitchenPrice,col = "KitchenPrice")) +    
+                  geom_point(aes(y = LaundryPrice,col = "LaundryPrice")) +
+                  geom_point(aes(y = HVACPrice,col = "HVACPrice")) +
+                  geom_point(aes(y = TotalPrice,col = "TotalPrice")) +
+                  ylab("€")
+              }
+          }
+      }
+    } else { 
+      print("Choose a valid Date")
+      }
+}
+Year <- 2008
+Month <- 10
+Day <- 5
+Plot(2008,10,5)
