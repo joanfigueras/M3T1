@@ -2,7 +2,7 @@ library("pacman")
 p_load(dplyr, ggplot2,forecast,DescTools,corrplot,plotly,ggfortify, 
        GGally, readr,caret,readxl,RMySQL, scales,zoo, stringr,
        knitr,printr,party,polycor,padr,BBmisc,car,
-       rstudioapi,reshape,lubridate,raster,opera)
+       rstudioapi,reshape,lubridate,raster,opera,prophet)
 #Creating proper dataset####
 energy <- read.csv("energy.csv",as.is = TRUE)
 energy$datetime <- as_datetime(energy$timedate,tz = "GMT")
@@ -106,7 +106,7 @@ for (i in 1:length(unique(energy$yearmonth))) {
 names(monthlyplots) <- unique(energy$yearmonth)
 #TIME SERIES####
 #Grouping by year and week
-energyweekly <- energy %>% group_by(year,week) %>% 
+energytimed <- energy %>% group_by(year,month,day) %>% 
                 summarise(kitchen = sum(kitchen),
                           laundry = sum(laundry),
                           hvac = sum(hvac),
@@ -116,8 +116,8 @@ energyweekly <- energy %>% group_by(year,week) %>%
                           pricehvac = sum(pricehvac),
                           totalprice = sum(totalprice))
 #Creating Time Series####
-energyts <- msts(energyweekly$active,seasonal.periods = 53,ts.frequency = 53,
-                 start = c(2007,1),end = c(2009,53))
+energyts <- msts(energytimed$active,seasonal.periods = 365,ts.frequency = 365,
+                 start = c(2007,1),end = c(2009,365))
 decomposedts <- stl(energyts,s.window = "period")
 plot(energyts, main="Active consumption", xlab="Year", ylab="KW/h")
 autoplot(decomposedts)
@@ -125,22 +125,22 @@ autoplot(decomposedts)
 energytsholt <- energyts - decomposedts$time.series[,1]
 
 #Creating train and test####  
-trainset <- window(energyts, start=2007,end = c(2008,53))
+trainset <- window(energyts, start=2007,end = c(2008,365))
 testset <- window(energyts, start=2009)
 
-trainsetholt <- window(energytsholt, start=2007,end = c(2008,53))
+trainsetholt <- window(energytsholt, start=2007,end = c(2008,365))
 testsetholt <- window(energytsholt, start=2009)
 #Holtwinters####
 holtresult <- HoltWinters(x = trainsetholt,beta = FALSE,gamma = FALSE)
-holtforecast2009 <- forecast(holtresult,h = 53)
+holtforecast2009 <- forecast(holtresult,h = 365)
 holtacc <- accuracy(f = holtforecast2009,testsetholt)
 plot(holtresult)
 #Autoarima####
 arimaresult <- auto.arima(trainset)
-arimaforecast2009 <- forecast(arimaresult,h = 53)
+arimaforecast2009 <- forecast(arimaresult,h = 365)
 arimaacc <- accuracy(f = arimaforecast2009,testset)
 plot(arimaforecast2009)
-#CrossValidation other models
+#CrossValidation other models####
 crossvalidation <- c()
 vector <- c(meanf,rwf,naive)
 accuracycv <- NULL
@@ -149,6 +149,26 @@ for (i in vector) {
   accuracycv <- rbind(accuracycv,accuracy(crossvalidation,energyts))
 }
 rownames(accuracycv) <- c("meanf","rwf","naive")
+#Prophet####
+prophetdf <- energy %>% group_by(date(datetime)) %>% 
+  summarise(y = sum(active))
+names(prophetdf) <- c("ds","y")
+
+partytime <- data.frame(holiday = 'summer',
+                        ds = c('31-8-3007','31-8-3008','31-8-3009'),
+                        lower_window = -31,
+                        upper_window = 0)
+
+prophetresult <- prophet(prophetdf,daily.seasonality = TRUE,
+                         yearly.seasonality = FALSE, 
+                         weekly.seasonality = FALSE,
+                         holidays = partytime)
+futuredf <- make_future_dataframe(prophetresult,periods = 365)
+prophetforecast2010 <- predict(prophetresult,futuredf)
+prophetaacc <- accuracy(f = prophetforecast2010$yhat,testset)
+plot(x = prophetforecast2010$ds,y = prophetforecast2010$yhat)
+
 accuracycv
 arimaacc
 holtacc
+prophetaacc
