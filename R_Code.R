@@ -116,10 +116,10 @@ energytimed <- energy %>% group_by(year,month,day) %>%
                           pricehvac = sum(pricehvac),
                           totalprice = sum(totalprice))
 #Creating Time Series####
-energyts <- msts(energytimed$active,seasonal.periods = 365,ts.frequency = 365,
+energyts <- msts(energytimed$totalprice,seasonal.periods = 365,ts.frequency = 365,
                  start = c(2007,1),end = c(2009,365))
 decomposedts <- stl(energyts,s.window = "period")
-plot(energyts, main="Active consumption", xlab="Year", ylab="KW/h")
+plot(energyts, main="Daily Price", xlab="Year", ylab="€")
 autoplot(decomposedts)
 
 energytsholt <- energyts - decomposedts$time.series[,1]
@@ -151,12 +151,19 @@ for (i in vector) {
 rownames(accuracycv) <- c("meanf","rwf","naive")
 #Prophet####
 prophetdf <- energy %>% group_by(date(datetime)) %>% 
-  summarise(y = sum(active))
+  summarise(y = sum(totalprice))
 names(prophetdf) <- c("ds","y")
 partytime <- data.frame(holiday = 'summer',
                         ds = c(seq(as.Date('2007-08-01'),as.Date('2007-08-31'),by = 'd'),
                                seq(as.Date('2008-08-01'),as.Date('2008-08-31'),by = 'd'),
-                               seq(as.Date('2009-08-01'),as.Date('2009-08-31'),by = 'd')))
+                               seq(as.Date('2009-08-01'),as.Date('2009-08-31'),by = 'd'),
+                               seq(as.Date('2010-08-01'),as.Date('2010-08-31'),by = 'd')))
+winterdf <- data.frame(holiday = 'winter',
+                        ds = c(seq(as.Date('2007-11-21'),as.Date('2008-01-31'),by = 'd'),
+                               seq(as.Date('2008-11-21'),as.Date('2009-01-31'),by = 'd'),
+                               seq(as.Date('2009-11-21'),as.Date('2010-01-31'),by = 'd'),
+                               seq(as.Date('2010-11-21'),as.Date('2011-01-31'),by = 'd')))
+partytime <- rbind(partytime,winterdf)
 prophetresult <- prophet(prophetdf,daily.seasonality = TRUE,
                          holidays = partytime)
 futuredf <- make_future_dataframe(prophetresult,periods = 365)
@@ -165,8 +172,8 @@ prophet_plot_components(prophetresult,fcst = prophetforecast2010)
 plot(prophetresult,prophetforecast2010,pch = 24,cex = 3)
 #CV PROPHET
 cvdf <- cross_validation(prophetresult,initial = 2*365,units = 'days',horizon = 365)
-cvdfper <- performance_metrics(cvdf,rolling_window = 0.2)
-
+cvdfper <- performance_metrics(cvdf,rolling_window = 0)
+mean(cvdfper$mape)
 accuracycv
 arimaacc
 holtacc
