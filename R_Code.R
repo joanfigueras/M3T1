@@ -153,20 +153,19 @@ rownames(accuracycv) <- c("meanf","rwf","naive")
 prophetdf <- energy %>% group_by(date(datetime)) %>% 
   summarise(y = sum(active))
 names(prophetdf) <- c("ds","y")
-
 partytime <- data.frame(holiday = 'summer',
-                        ds = c('31-8-3007','31-8-3008','31-8-3009'),
-                        lower_window = -31,
-                        upper_window = 0)
-
+                        ds = c(seq(as.Date('2007-08-01'),as.Date('2007-08-31'),by = 'd'),
+                               seq(as.Date('2008-08-01'),as.Date('2008-08-31'),by = 'd'),
+                               seq(as.Date('2009-08-01'),as.Date('2009-08-31'),by = 'd')))
 prophetresult <- prophet(prophetdf,daily.seasonality = TRUE,
-                         yearly.seasonality = FALSE, 
-                         weekly.seasonality = FALSE,
                          holidays = partytime)
 futuredf <- make_future_dataframe(prophetresult,periods = 365)
 prophetforecast2010 <- predict(prophetresult,futuredf)
-prophetaacc <- accuracy(f = prophetforecast2010$yhat,testset)
-plot(x = prophetforecast2010$ds,y = prophetforecast2010$yhat)
+prophet_plot_components(prophetresult,fcst = prophetforecast2010)
+plot(prophetresult,prophetforecast2010,pch = 24,cex = 3)
+#CV PROPHET
+cvdf <- cross_validation(prophetresult,initial = 2*365,units = 'days',horizon = 365)
+cvdfper <- performance_metrics(cvdf,rolling_window = 0.2)
 
 accuracycv
 arimaacc
