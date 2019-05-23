@@ -166,86 +166,97 @@ cvdf <- cross_validation(prophetresult,initial = 2*365,units = 'days',horizon = 
 cvdfper <- performance_metrics(cvdf,rolling_window = 0)
 mean(cvdfper$mape)
 
-#PLOTS####
-Plot <- function(Year,Month,Day){
-  require(ggplot2,dplyr,ggfortify,GGally,caret,printr,lubridate)
-  if(Year %in% unique(energy$year) & Month %in% unique(energy$month) & Day %in% unique(energy$day)){
-    if(is.null(Year)){
-        print("Missing Year")
+#DASHBOARDPLOTS####
+DashboardPlot <- function(Year,Month,Day){
+  require(ggplot2)
+  require(ggfortify)
+  require(dplyr)
+  require(GGally)
+    if(missing(Year)){
+      p <- "Missing Year argument"
       } else {
-          if(is.null(Month)){
+          if(missing(Month)){
+            if(Year %in% unique(energy$year)){
             Day <- NULL
-            df <- energy %>% group_by(energy$year) 
-            %>% dplyr::filter(energy$year == Year) 
-            %>% summarise(KitchenKw/h = sum(kitchen),
-                          LaundryKw/h = sum(laundry),
-                          HVACKw/h = sum(hvac),
-                          TotalKw/h = sum(active),
+            df <- energy %>% group_by(year,month)  %>%
+            dplyr::filter(year == Year)  %>%
+                summarise(KitchenKw = sum(kitchen),
+                          LaundryKw = sum(laundry),
+                          HVACKw = sum(hvac),
+                          TotalKw = sum(active),
                           KitchenPrice = sum(pricekitchen),
                           LaundryPrice = sum(pricelaundry),
                           HVACPrice = sum(pricehvac),
                           TotalPrice = sum(totalprice))
-            ggplot(df,aes(x = df$year)) +
-              geom_line(aes(y = KitchenPrice,col = "KitchenPrice")) +
-              geom_line(aes(y = LaundryPrice,col = "LaundryPrice")) +
-              geom_line(aes(y = HVACPrice,col = "HVACPrice")) +
-              geom_line(aes(y = TotalPrice,col = "TotalPrice")) +
-              geom_point(aes(y = KitchenPrice,col = "KitchenPrice")) +    
-              geom_point(aes(y = LaundryPrice,col = "LaundryPrice")) +
-              geom_point(aes(y = HVACPrice,col = "HVACPrice")) +
-              geom_point(aes(y = TotalPrice,col = "TotalPrice")) +
-              ylab("€")
-          } else {
-              if(is.null(Day)){
-                df <- energy %>% group_by(energy$year,energy$month) 
-                %>% dplyr::filter(energy$year == Year & energy$month == Month)
-                %>% summarise(KitchenKw/h = sum(kitchen),
-                              LaundryKw/h = sum(laundry),
-                              HVACKw/h = sum(hvac),
-                              TotalKw/h = sum(active),
+            
+             p <- plot_ly(df, x = ~df$month, 
+                        y = ~df$KitchenPrice, name = 'Kitchen', type = 'scatter', mode = 'lines') %>%
+              add_trace(y = ~df$LaundryPrice, name = 'Laundry', mode = 'lines') %>%
+              add_trace(y = ~df$HVACPrice, name = 'HVAC', mode = 'lines') %>%
+              add_trace(y = ~df$TotalPrice, name = 'Total', mode = 'lines') %>%
+              layout(title = paste(df$year[1]),
+                     xaxis = list(title = "Month"),
+                     yaxis = list (title = "€"))
+            
+          }
+            else {
+              p <- "We don't have data from that year"
+              }
+            } else {
+              if(missing(Day)){ 
+                if(Year %in% unique(energy$year) & Month %in% unique(energy$month)){
+                df <- energy %>% group_by(year,month,day) %>% 
+                dplyr::filter(year == Year & month == Month) %>% 
+                    summarise(KitchenKw = sum(kitchen),
+                              LaundryKw = sum(laundry),
+                              HVACKw = sum(hvac),
+                              TotalKw = sum(active),
                               KitchenPrice = sum(pricekitchen),
                               LaundryPrice = sum(pricelaundry),
                               HVACPrice = sum(pricehvac),
                               TotalPrice = sum(totalprice))
-                ggplot(df,aes(x = energy$day)) +
-                  geom_line(aes(y = KitchenPrice,col = "KitchenPrice")) +
-                  geom_line(aes(y = LaundryPrice,col = "LaundryPrice")) +
-                  geom_line(aes(y = HVACPrice,col = "HVACPrice")) +
-                  geom_line(aes(y = TotalPrice,col = "TotalPrice")) +
-                  geom_point(aes(y = KitchenPrice,col = "KitchenPrice")) +    
-                  geom_point(aes(y = LaundryPrice,col = "LaundryPrice")) +
-                  geom_point(aes(y = HVACPrice,col = "HVACPrice")) +
-                  geom_point(aes(y = TotalPrice,col = "TotalPrice")) +
-                  ylab("€")
-              } else {
-                df <- energy %>% group_by(energy$year,energy$month,energy$day) 
-                %>% dplyr::filter(energy$year == Year & energy$month == Month & energy$day == Day)
-                %>% summarise(KitchenKw/h = sum(kitchen),
-                              LaundryKw/h = sum(laundry),
-                              HVACKw/h = sum(hvac),
-                              TotalKw/h = sum(active),
+                p <- plot_ly(df, x = ~df$day, 
+                             y = ~df$KitchenPrice, name = 'Kitchen', type = 'scatter', mode = 'lines') %>%
+                  add_trace(y = ~df$LaundryPrice, name = 'Laundry', mode = 'lines') %>%
+                  add_trace(y = ~df$HVACPrice, name = 'HVAC', mode = 'lines') %>%
+                  add_trace(y = ~df$TotalPrice, name = 'Total', mode = 'lines') %>%
+                  layout(title = paste(df$year[1],df$month[1],sep = "-"),
+                         xaxis = list(title = "Day"),
+                         yaxis = list (title = "€"))
+              }
+              else {
+                p <- "We don't have data for that month or year"
+                }
+              }
+              else 
+                  {
+                if(Year %in% unique(energy$year) & Month %in% unique(energy$month) & Day %in% unique(energy$day)){
+                df <- energy %>% group_by(year,month,day,hour) %>%
+                dplyr::filter(year == Year & month == Month & day == Day) %>%
+                    summarise(KitchenKw = sum(kitchen),
+                              LaundryKw = sum(laundry),
+                              HVACKw = sum(hvac),
+                              TotalKw = sum(active),
                               KitchenPrice = sum(pricekitchen),
                               LaundryPrice = sum(pricelaundry),
                               HVACPrice = sum(pricehvac),
                               TotalPrice = sum(totalprice))
-                ggplot(df,aes(x = df$hour)) +
-                  geom_line(aes(y = KitchenPrice,col = "KitchenPrice")) +
-                  geom_line(aes(y = LaundryPrice,col = "LaundryPrice")) +
-                  geom_line(aes(y = HVACPrice,col = "HVACPrice")) +
-                  geom_line(aes(y = TotalPrice,col = "TotalPrice")) +
-                  geom_point(aes(y = KitchenPrice,col = "KitchenPrice")) +    
-                  geom_point(aes(y = LaundryPrice,col = "LaundryPrice")) +
-                  geom_point(aes(y = HVACPrice,col = "HVACPrice")) +
-                  geom_point(aes(y = TotalPrice,col = "TotalPrice")) +
-                  ylab("€")
+                p <- plot_ly(df, x = ~df$hour, 
+                             y = ~df$KitchenPrice, name = 'Kitchen', type = 'scatter', mode = 'lines') %>%
+                  add_trace(y = ~df$LaundryPrice, name = 'Laundry', mode = 'lines') %>%
+                  add_trace(y = ~df$HVACPrice, name = 'HVAC', mode = 'lines') %>%
+                  add_trace(y = ~df$TotalPrice, name = 'Total', mode = 'lines') %>%
+                  layout(title = paste(df$year[1],df$month[1],df$day[1],sep = "-"),
+                         xaxis = list(title = "Hour"),
+                         yaxis = list (title = "€"))
+            
+                } else {
+                p <- "We don't have data from that date"
+                }
               }
           }
-      }
-    } else { 
-      print("Choose a valid Date")
-      }
+      } 
+  return(p)
 }
-Year <- 2008
-Month <- 10
-Day <- 5
-Plot(2008,10,5)
+
+
