@@ -3,8 +3,11 @@ p_load(dplyr, ggplot2,forecast,DescTools,corrplot,plotly,ggfortify,
        GGally, readr,caret,readxl,RMySQL, scales,zoo, stringr,
        knitr,printr,party,polycor,padr,BBmisc,car,tidyr,
        rstudioapi,reshape,lubridate,raster,opera,prophet, shiny,shinydashboard,highcharter)
+#Github environment####
+current_path <- getwd()
+setwd(dirname(current_path))
 #Creating proper dataset####
-energy <- read.csv("~/Ubiqum/Module 3/M3T1/energy.csv",as.is = TRUE)
+energy <- read.csv("Datasets/energy.csv",as.is = TRUE)
 energy$datetime <- as_datetime(energy$timedate,tz = "GMT")
 energy$datetime <- as_datetime(energy$datetime,tz = "Europe/Paris")
 energy$timedate <- NULL
@@ -47,8 +50,8 @@ for (i in 1:length(vector)) {
 energy$totalprice <- energy$priceactive
 energy$priceactive <- NULL
 
-energy_month <- read.csv("~/Ubiqum/Module 3/M3T1/energy_month.csv",row.names = 1,colClasses=c("Date"="Date"))
-energy_year <- read.csv("~/Ubiqum/Module 3/M3T1/energy_year.csv",row.names = 1,colClasses=c("Date"="Date"))
+energy_month <- read.csv("Datasets/energy_month.csv",row.names = 1,colClasses=c("Date"="Date"))
+energy_year <- read.csv("Datasets/energy_year.csv",row.names = 1,colClasses=c("Date"="Date"))
 
 DashboardPlot <- function(Year,Month = 0,Day = 0){
   require(ggplot2)
