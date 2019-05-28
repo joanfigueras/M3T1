@@ -4,8 +4,8 @@ p_load(dplyr, ggplot2,forecast,DescTools,corrplot,plotly,ggfortify,
        knitr,printr,party,polycor,padr,BBmisc,car,tidyr,
        rstudioapi,reshape,lubridate,raster,opera,prophet, shiny,shinydashboard,highcharter)
 #Github environment####
-current_path <- getwd()
-setwd(dirname(current_path))
+current_path <- getActiveDocumentContext()
+setwd(dirname(dirname(current_path$path)))
 #Creating proper dataset####
 energy <- read.csv("Datasets/energy.csv",as.is = TRUE)
 energy$datetime <- as_datetime(energy$timedate,tz = "GMT")
